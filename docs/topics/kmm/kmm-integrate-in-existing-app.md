@@ -109,7 +109,7 @@ dump the `greeting()` function result to the log by updating the `onCreate()` me
 
 You can now extract the business logic code to the KMM shared module and make it platform-independent. This is necessary for reusing the code for both Android and iOS.
 
-1. Move the business logic code `com.jetbrains.simplelogin.androidapp.data` from the `app` directory to the `com.example.shared` package in the `shared/src/commonMain` directory.
+1. Move the business logic code `com.jetbrains.simplelogin.androidapp.data` from the `app` directory to the `com.jetbrains.simplelogin.shared` package in the `shared/src/commonMain` directory.
    You can drag and drop the package or refactor it by moving everything from one directory to another.
 
    ![Drag and drop the package with the business logic code](moving-business-logic.png){width=350}
@@ -122,9 +122,9 @@ You can now extract the business logic code to the KMM shared module and make it
 
    ![Warnings about platform-dependent code](warnings-android-specific-code.png){width=450}
 
-4. Remove Android-specific code by replacing it with cross-platform Kotlin code or connecting to Android-specific APIs using [`expect` and `actual` declarations](kmm-connect-to-platform-specific-apis.md). See the following sections for details.
+4. Remove Android-specific code by replacing it with cross-platform Kotlin code or connecting to Android-specific APIs using [`expect` and `actual` declarations](kmm-connect-to-platform-specific-apis.md). See the following sections for details:
 
-#### Replace Android-specific code with cross-platform code
+#### Replace Android-specific code with cross-platform code {initial-collapse-state="collapsed"}
 
 To make your code work well on both Android and iOS, replace all JVM dependencies with Kotlin dependencies in the moved `data` directory wherever possible.
 
@@ -163,7 +163,7 @@ To make your code work well on both Android and iOS, replace all JVM dependencie
     }
     ```
 
-#### Connect to platform-specific APIs from the cross-platform code
+#### Connect to platform-specific APIs from the cross-platform code {initial-collapse-state="collapsed"}
 
 In the `LoginDataSource` class, a universally unique identifier (UUID) for `fakeUser` is generated using the `java.util.UUID` class, which is not available for iOS.
 
@@ -185,7 +185,7 @@ You can learn more about [connecting to platform-specific APIs](kmm-connect-to-p
 1. Create a `Utils.kt` file in the `shared/src/commonMain/kotlin/com/example/shared` directory and provide the `expect` declaration:
 
     ```kotlin
-    package com.example.shared
+    package com.jetbrains.simplelogin.shared
     
     expect fun randomUUID(): String
     ```
@@ -193,7 +193,7 @@ You can learn more about [connecting to platform-specific APIs](kmm-connect-to-p
 2. Create a `Utils.kt` file in the `shared/src/androidMain/kotlin/com/example/shared` directory and provide the `actual` implementation for `randomUUID()` in Android:
 
     ```kotlin
-    package com.example.shared
+    package com.jetbrains.simplelogin.shared
     
     import java.util.*
     actual fun randomUUID() = UUID.randomUUID().toString()
@@ -202,7 +202,7 @@ You can learn more about [connecting to platform-specific APIs](kmm-connect-to-p
 3. Create a `Utils.kt` file in the `shared/src/iosMain/kotlin/com/example/shared` directory and provide the `actual` implementation for `randomUUID()` in iOS:
 
     ```kotlin
-    package com.example.shared
+    package com.jetbrains.simplelogin.shared
     
     import platform.Foundation.NSUUID
     actual fun randomUUID(): String = NSUUID().UUIDString()
@@ -244,7 +244,7 @@ In Android Studio, you'll get the following structure:
 
 ![iOS project in Android Studio](ios-project-in-as.png){width=194}
 
-You can rename `simpleLoginIOS` to `iosApp` for consistency with other top-level directories of your cross-platform project.
+You can rename the `simpleLoginIOS` directory to `iosApp` for consistency with other top-level directories of your cross-platform project.
 
 ![Renamed iOS project directory in Android Studio](ios-directory-renamed-in-as.png){width=194}
 
@@ -320,25 +320,137 @@ Your code should look like this:
 
    ![Greeting from the KMM module](xcode-iphone-hello.png){width=300}
 
-4. In `ContentView.swift`, write [code for using data from the shared module and rendering the application UI](https://github.com/Kotlin/kmm-integration-sample/blob/final/SimpleLoginIOS/SimpleLoginIOS/ContentView.swift).
+#### In `ContentView.swift`, write code for using data from the shared module and rendering the application UI {initial-collapse-state="collapsed"}
+   
+```Swift
+import SwiftUI
+import shared
 
-5. In `simpleLoginIOSApp.swift`, import the `shared` module and specify the arguments for the `ContentView()` function:
-
-    ```Swift
-    import SwiftUI
-    import shared
+struct ContentView: View {
+    @State private var username: String = ""
+    @State private var password: String = ""
     
-    @main
-    struct SimpleLoginIOSApp: App {
-        var body: some Scene {
-            WindowGroup {
-                ContentView(viewModel: .init(loginRepository: LoginRepository(dataSource: LoginDataSource()), loginValidator: LoginDataValidator()))
+    @ObservedObject var viewModel: ContentView.ViewModel
+    
+    var body: some View {
+        VStack(spacing: 15.0) {
+            ValidatedTextField(titleKey: "Username", secured: false, text: $username, errorMessage: viewModel.formState.usernameError, onChange: {
+                viewModel.loginDataChanged(username: username, password: password)
+            })
+            ValidatedTextField(titleKey: "Password", secured: true, text: $password, errorMessage: viewModel.formState.passwordError, onChange: {
+                viewModel.loginDataChanged(username: username, password: password)
+            })
+            Button("Login") {
+                viewModel.login(username: username, password: password)
+            }.disabled(!viewModel.formState.isDataValid || (username.isEmpty && password.isEmpty))
+        }
+        .padding(.all)
+    }
+}
+
+struct ValidatedTextField: View {
+    let titleKey: String
+    let secured: Bool
+    @Binding var text: String
+    let errorMessage: String?
+    let onChange: () -> ()
+    
+    @ViewBuilder var textField: some View {
+        if secured {
+            SecureField(titleKey, text: $text)
+        }  else {
+            TextField(titleKey, text: $text)
+        }
+    }
+    
+    var body: some View {
+        ZStack {
+            textField
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .autocapitalization(.none)
+                .onChange(of: text) { _ in
+                    onChange()
+                }
+            if let errorMessage = errorMessage {
+                HStack {
+                    Spacer()
+                    FieldTextErrorHint(error: errorMessage)
+                }.padding(.horizontal, 5)
             }
         }
     }
-   ```  
+}
 
-   ![Simple login application](xcode-iphone-login.png){width=300}
+struct FieldTextErrorHint: View {
+    let error: String
+    @State private var showingAlert = false
+    
+    var body: some View {
+        Button(action: { self.showingAlert = true }) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.red)
+        }
+        .alert(isPresented: $showingAlert) {
+            Alert(title: Text("Error"), message: Text(error), dismissButton: .default(Text("Got it!")))
+        }
+    }
+}
+
+extension ContentView {
+    
+    struct LoginFormState {
+        let usernameError: String?
+        let passwordError: String?
+        var isDataValid: Bool {
+            get { return usernameError == nil && passwordError == nil }
+        }
+    }
+    
+    class ViewModel: ObservableObject {
+        @Published var formState = LoginFormState(usernameError: nil, passwordError: nil)
+        
+        let loginValidator: LoginDataValidator
+        let loginRepository: LoginRepository
+        
+        init(loginRepository: LoginRepository, loginValidator: LoginDataValidator) {
+            self.loginRepository = loginRepository
+            self.loginValidator = loginValidator
+        }
+        
+        func login(username: String, password: String) {
+            if let result = loginRepository.login(username: username, password: password) as? ResultSuccess  {
+                print("Successful login. Welcome, \(result.data.displayName)")
+            } else {
+                print("Error while logging in")
+            }
+        }
+        
+        func loginDataChanged(username: String, password: String) {
+            formState = LoginFormState(
+                usernameError: (loginValidator.checkUsername(username: username) as? LoginDataValidator.ResultError)?.message,
+                passwordError: (loginValidator.checkPassword(password: password) as? LoginDataValidator.ResultError)?.message)
+        }
+    }
+}
+```
+
+#### In `simpleLoginIOSApp.swift`, import the `shared` module and specify the arguments for the `ContentView()` function {initial-collapse-state="collapsed"}
+
+ ```Swift
+ import SwiftUI
+ import shared
+ 
+ @main
+ struct SimpleLoginIOSApp: App {
+     var body: some Scene {
+         WindowGroup {
+             ContentView(viewModel: .init(loginRepository: LoginRepository(dataSource: LoginDataSource()), loginValidator: LoginDataValidator()))
+         }
+     }
+ }
+```  
+
+![Simple login application](xcode-iphone-login.png){width=300}
 
 ## Enjoy the results – update the logic only once
 
@@ -347,7 +459,7 @@ Now your application is cross-platform. You can update the business logic in one
 1. In Android Studio, change the validation logic for a user's password in the `checkPassword()` function of the `LoginDataValidator` class:
 
     ```kotlin 
-    package com.example.shared.data
+    package com.jetbrains.simplelogin.shared.data
 
     class LoginDataValidator {
     //... 
