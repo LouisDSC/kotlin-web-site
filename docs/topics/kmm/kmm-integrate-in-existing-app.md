@@ -17,7 +17,11 @@ If you aren't familiar with KMM, you can learn how to [create and configure a KM
    >
    {type="note"}
 
-2. In Android Studio, create a new project from version control: `https://github.com/Kotlin/kmm-integration-sample`.
+2. In Android Studio, create a new project from version control:
+
+   ```text
+   https://github.com/Kotlin/kmm-integration-sample
+   ```
 
 3. Switch to the **Project** view.
 
@@ -59,7 +63,7 @@ In your Android project, create a KMM shared module for your cross-platform code
 
 1. In Android Studio, click **File** | **New** | **New Module**.
 
-2. In the list of templates, select **KMM Shared Module**, enter the module name `shared`, and select the 
+2. In the list of templates, select **Kotlin Multiplatform Shared Module**, enter the module name `shared`, and select the 
    **Regular framework** in the list of iOS framework distribution options.  
    This is required for connecting the shared module to the iOS application.
 
@@ -85,11 +89,18 @@ To use cross-platform code in your Android application, connect the shared modul
     }
     ```
 
-3. Synchronize the Gradle files by clicking **Sync Now** in the warning.
+3. Ensure that in `gradle.properties` you have hierarchical project structure enabled:
+
+   ```text
+   kotlin.mpp.enableGranularSourceSetsMetadata=true
+   kotlin.native.enableDependencyPropagation=false
+   ```
+
+4. Synchronize the Gradle files by clicking **Sync Now** in the warning.
 
    ![Synchronize the Gradle files](gradle-sync.png)
 
-4. To make sure that the shared module is successfully connected to your application, in the `app/src/main/java/com/jetbrains/simplelogin/adroidapp/ui/login`,
+5. To make sure that the shared module is successfully connected to your application, in the `app/src/main/java/com/jetbrains/simplelogin/adroidapp/ui/login`,
 dump the `greeting()` function result to the log by updating the `onCreate()` method of the `LoginActivity` class:
 
     ```kotlin
@@ -100,8 +111,8 @@ dump the `greeting()` function result to the log by updating the `onCreate()` me
    
     }
     ```
-5. Follow Android Studio suggestions to import missing classes.
-6. Debug the `app`. On the **Logcat** tab, search for `Hello` in the log, and you'll find the greeting from the shared module.
+6. Follow Android Studio suggestions to import missing classes.
+7. Debug the `app`. On the **Logcat** tab, search for `Hello` in the log, and you'll find the greeting from the shared module.
 
    ![Greeting from the shared module](shared-module-greeting.png)
 
@@ -182,7 +193,7 @@ You can learn more about [connecting to platform-specific APIs](kmm-connect-to-p
    val fakeUser = LoggedInUser(randomUUID(), "Jane Doe") 
    ```
 
-1. Create a `Utils.kt` file in the `shared/src/commonMain/kotlin/com/example/shared` directory and provide the `expect` declaration:
+1. Create a `Utils.kt` file in the `com.jetbrains.simplelogin.shared` package in the `shared/src/commonMain` directory and provide the `expect` declaration:
 
     ```kotlin
     package com.jetbrains.simplelogin.shared
@@ -190,7 +201,7 @@ You can learn more about [connecting to platform-specific APIs](kmm-connect-to-p
     expect fun randomUUID(): String
     ```
 
-2. Create a `Utils.kt` file in the `shared/src/androidMain/kotlin/com/example/shared` directory and provide the `actual` implementation for `randomUUID()` in Android:
+2. Create a `Utils.kt` file in the `com.jetbrains.simplelogin.shared` package in the `shared/src/androidMain` directory and provide the `actual` implementation for `randomUUID()` in Android:
 
     ```kotlin
     package com.jetbrains.simplelogin.shared
@@ -199,7 +210,7 @@ You can learn more about [connecting to platform-specific APIs](kmm-connect-to-p
     actual fun randomUUID() = UUID.randomUUID().toString()
     ```
 
-3. Create a `Utils.kt` file in the `shared/src/iosMain/kotlin/com/example/shared` directory and provide the `actual` implementation for `randomUUID()` in iOS:
+3. Create a `Utils.kt` file in the `com.jetbrains.simplelogin.shared` in the `shared/src/iosMain` directory and provide the `actual` implementation for `randomUUID()` in iOS:
 
     ```kotlin
     package com.jetbrains.simplelogin.shared
@@ -311,21 +322,45 @@ Connect your framework to the iOS project manually:
 2. To check that it is properly connected, use the `greeting()` function from the shared module of your cross-platform app.
 Your code should look like this:
 
-    ```Swift
-    import SwiftUI
-    import shared
-    
-    struct ContentView: View {
-        var body: some View {
-            Text(Greeting().greeting())
-            .padding()
-        }   
-    }
-   ```
+
+```Swift
+import SwiftUI
+import shared
+
+struct ContentView: View {
+  var body: some View {
+      Text(Greeting().greeting())
+      .padding()
+  }   
+}
+```
+   
+<code style="block" lang="Swift">
+import SwiftUI
+import shared
+
+struct ContentView: View {
+var body: some View {
+   Text(Greeting().greeting())
+   .padding()
+   }   
+}
+</code>
+
+<code style="block" lang="Swift">
+import SwiftUI
+import shared
+struct ContentView: View {
+var body: some View {
+   Text(Greeting().greeting())
+   .padding()
+   }   
+}
+</code>
 
    ![Greeting from the KMM module](xcode-iphone-hello.png){width=300}
 
-#### In `ContentView.swift`, write code for using data from the shared module and rendering the application UI {initial-collapse-state="collapsed"}
+#### In ContentView.swift, write code for using data from the shared module and rendering the application UI {initial-collapse-state="collapsed"}
    
 ```Swift
 import SwiftUI
@@ -439,20 +474,20 @@ extension ContentView {
 }
 ```
 
-#### In `simpleLoginIOSApp.swift`, import the `shared` module and specify the arguments for the `ContentView()` function {initial-collapse-state="collapsed"}
+#### In simpleLoginIOSApp.swift, import the shared module and specify the arguments for the ContentView() function {initial-collapse-state="collapsed"}
 
  ```Swift
- import SwiftUI
- import shared
- 
- @main
- struct SimpleLoginIOSApp: App {
-     var body: some Scene {
-         WindowGroup {
-             ContentView(viewModel: .init(loginRepository: LoginRepository(dataSource: LoginDataSource()), loginValidator: LoginDataValidator()))
-         }
-     }
- }
+import SwiftUI
+import shared
+
+@main
+struct SimpleLoginIOSApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView(viewModel: .init(loginRepository: LoginRepository(dataSource: LoginDataSource()), loginValidator: LoginDataValidator()))
+        }
+    }
+}
 ```  
 
 ![Simple login application](xcode-iphone-login.png){width=300}
@@ -469,7 +504,7 @@ Now your application is cross-platform. You can update the business logic in one
     class LoginDataValidator {
     //... 
         fun checkPassword(password: String): Result {
-            return when  {
+            return when {
                 password.length < 5 -> Result.Error("Password must be >5 characters")
                 password.lowercase() == "password" -> Result.Error("Password shouldn't be \"password\"")
                 else -> Result.Success
