@@ -336,135 +336,27 @@ Your code should look like this:
 
    ![Greeting from the KMM module](xcode-iphone-hello.png){width=300}
 
-#### In ContentView.swift, write code for using data from the shared module and rendering the application UI {initial-collapse-state="collapsed"}
+3. In `ContentView.swift`, write code for using data from the shared module and rendering the application UI:
 
 ```Swift
-import SwiftUI
-import shared
-
-struct ContentView: View {
-    @State private var username: String = ""
-    @State private var password: String = ""
-    
-    @ObservedObject var viewModel: ContentView.ViewModel
-    
-    var body: some View {
-        VStack(spacing: 15.0) {
-            ValidatedTextField(titleKey: "Username", secured: false, text: $username, errorMessage: viewModel.formState.usernameError, onChange: {
-                viewModel.loginDataChanged(username: username, password: password)
-            })
-            ValidatedTextField(titleKey: "Password", secured: true, text: $password, errorMessage: viewModel.formState.passwordError, onChange: {
-                viewModel.loginDataChanged(username: username, password: password)
-            })
-            Button("Login") {
-                viewModel.login(username: username, password: password)
-            }.disabled(!viewModel.formState.isDataValid || (username.isEmpty && password.isEmpty))
-        }
-        .padding(.all)
-    }
-}
-
-struct ValidatedTextField: View {
-    let titleKey: String
-    let secured: Bool
-    @Binding var text: String
-    let errorMessage: String?
-    let onChange: () -> ()
-    
-    @ViewBuilder var textField: some View {
-        if secured {
-            SecureField(titleKey, text: $text)
-        }  else {
-            TextField(titleKey, text: $text)
-        }
-    }
-    
-    var body: some View {
-        ZStack {
-            textField
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .autocapitalization(.none)
-                .onChange(of: text) { _ in
-                    onChange()
-                }
-            if let errorMessage = errorMessage {
-                HStack {
-                    Spacer()
-                    FieldTextErrorHint(error: errorMessage)
-                }.padding(.horizontal, 5)
-            }
-        }
-    }
-}
-
-struct FieldTextErrorHint: View {
-    let error: String
-    @State private var showingAlert = false
-    
-    var body: some View {
-        Button(action: { self.showingAlert = true }) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(.red)
-        }
-        .alert(isPresented: $showingAlert) {
-            Alert(title: Text("Error"), message: Text(error), dismissButton: .default(Text("Got it!")))
-        }
-    }
-}
-
-extension ContentView {
-    
-    struct LoginFormState {
-        let usernameError: String?
-        let passwordError: String?
-        var isDataValid: Bool {
-            get { return usernameError == nil && passwordError == nil }
-        }
-    }
-    
-    class ViewModel: ObservableObject {
-        @Published var formState = LoginFormState(usernameError: nil, passwordError: nil)
-        
-        let loginValidator: LoginDataValidator
-        let loginRepository: LoginRepository
-        
-        init(loginRepository: LoginRepository, loginValidator: LoginDataValidator) {
-            self.loginRepository = loginRepository
-            self.loginValidator = loginValidator
-        }
-        
-        func login(username: String, password: String) {
-            if let result = loginRepository.login(username: username, password: password) as? ResultSuccess  {
-                print("Successful login. Welcome, \(result.data.displayName)")
-            } else {
-                print("Error while logging in")
-            }
-        }
-        
-        func loginDataChanged(username: String, password: String) {
-            formState = LoginFormState(
-                usernameError: (loginValidator.checkUsername(username: username) as? LoginDataValidator.ResultError)?.message,
-                passwordError: (loginValidator.checkPassword(password: password) as? LoginDataValidator.ResultError)?.message)
-        }
-    }
-}
 ```
+{style="block" src="codeSnippets/ContentView.swift" initial-collapse-state="collapsed" lines="1-109"}
 
-#### In simpleLoginIOSApp.swift, import the shared module and specify the arguments for the ContentView() function {initial-collapse-state="collapsed"}
+4. In `simpleLoginIOSApp.swift`, import the shared module and specify the arguments for the `ContentView()` function:
 
- ```Swift
-import SwiftUI
-import shared
-
-@main
-struct SimpleLoginIOSApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView(viewModel: .init(loginRepository: LoginRepository(dataSource: LoginDataSource()), loginValidator: LoginDataValidator()))
-        }
-    }
-}
-```  
+    ```Swift
+   import SwiftUI
+   import shared
+   
+   @main
+   struct SimpleLoginIOSApp: App {
+       var body: some Scene {
+           WindowGroup {
+               ContentView(viewModel: .init(loginRepository: LoginRepository(dataSource: LoginDataSource()), loginValidator: LoginDataValidator()))
+           }
+       }
+   }
+   ```  
 
 ![Simple login application](xcode-iphone-login.png){width=300}
 
