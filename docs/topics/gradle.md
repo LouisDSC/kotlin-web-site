@@ -597,6 +597,7 @@ kotlin {
 ```
 
 </tab>
+</tab>
 <tab title="Groovy" group-key="groovy">
 
 ```groovy
